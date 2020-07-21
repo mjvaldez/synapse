@@ -21,7 +21,6 @@ import logging
 import types
 import urllib
 from http import HTTPStatus
-from io import BytesIO
 from typing import Any, Callable, Dict, Tuple, Union
 
 import jinja2
@@ -31,7 +30,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from twisted.web import resource
 from twisted.web.server import NOT_DONE_YET, Request
-from twisted.web.static import File, NoRangeStaticProducer
+from twisted.web.static import File
 from twisted.web.util import redirectTo
 
 import synapse.events
@@ -43,6 +42,7 @@ from synapse.api.errors import (
     SynapseError,
     UnrecognizedRequestError,
 )
+from synapse.http.bytebufferproducer import ByteBufferProducer
 from synapse.http.site import SynapseRequest
 from synapse.logging.context import preserve_fn
 from synapse.logging.opentracing import trace_servlet
@@ -575,11 +575,7 @@ def respond_with_json_bytes(
     if send_cors:
         set_cors_headers(request)
 
-    # todo: we can almost certainly avoid this copy and encode the json straight into
-    # the bytesIO, but it would involve faffing around with string->bytes wrappers.
-    bytes_io = BytesIO(json_bytes)
-
-    producer = NoRangeStaticProducer(request, bytes_io)
+    producer = ByteBufferProducer(request, json_bytes)
     producer.start()
     return NOT_DONE_YET
 
